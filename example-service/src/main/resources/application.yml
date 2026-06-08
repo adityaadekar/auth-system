@@ -1,0 +1,20 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: example-service
+
+authz:
+  enabled: true
+  service-name: example-service
+  issuer: http://localhost:8080
+  jwk-set-uri: http://localhost:8080/.well-known/jwks.json
+  registry-uri: http://localhost:8080
+  api-policies:
+    STORE_ORDERS_READ:
+      allowed-actor-types:
+        - STORE_ADMIN
+        - SALESMAN
+      allowed-actor-groups:
+        - OPTOMETRIST
