@@ -1,41 +1,69 @@
 # auth-system
 
-Reference Spring Boot authentication and authorization system for store users.
+Reference Spring Boot JWT issuance and authorization system for store users.
 
 ## Modules
 
-- `auth-service`: owns OTP authentication, opaque session tokens, JWT issuance, key publication, API identifier registry, actor values, API-to-actor mappings, and revocation publication.
+- `auth-service`: owns JWT issuance for users that were already authenticated by an external auth service, key publication, API identifier registry, actor values, and API-to-actor mappings. It does not verify OTP/password credentials or create local login sessions.
 - `authz-starter`: reusable Spring Boot starter/library for microservices. It provides `@Authenticate("API_IDENTIFIER")`, validates JWTs offline using JWKS, checks local API identifier policy cache, and exposes the authenticated principal without defining actor types.
 - `example-service`: minimal protected service showing how another microservice integrates the starter.
 
 See [Auth and Authorization Design](docs/auth-authorization-design.md) for the full ownership model, portal-backed policy flow, refresh scenarios, and operational guidance.
 
-## Authentication flow
+## JWT issuance flow
 
-1. Frontend calls `POST /auth/otp/verify` with:
+1. The frontend or trusted edge service obtains and validates an access/session token from the external auth service.
+2. A trusted caller posts the already-authenticated session and user context to `POST /auth/jwt`:
 
    ```json
    {
-     "salesmanId": "S1001",
-     "otp": "123456",
+     "sessionToken": "external-session-token-123",
      "applicationId": "store-pos-web",
-     "deviceId": "browser-or-device-id"
+     "store": {
+       "storeId": "store-001",
+       "storeCode": "BLR-KRM",
+       "name": "Koramangala Flagship",
+       "city": "Bengaluru",
+       "region": "South",
+       "attributes": {
+         "format": "FLAGSHIP",
+         "inventoryZone": "BLR-SOUTH"
+       }
+     },
+     "salesman": {
+       "salesmanId": "S1001",
+       "displayName": "Aarav Sales",
+       "actorType": "SALESMAN",
+       "attributes": {
+         "employeeCode": "EMP-S-1001",
+         "counter": "C3"
+       }
+     },
+     "actorGroups": ["STORE_STAFF"]
    }
    ```
 
-2. `auth-service` validates `salesmanId + otp`, resolves the user's assigned store and salesman profile, creates a session, and returns:
-   - store details
-   - salesman details
-   - actor type from the auth-service actor catalog
-   - opaque session token
-   - signed JWT
-   - expiry
+3. `auth-service` does not authenticate the user or look up the profile. It signs the supplied context into a JWT and returns:
 
-   Actor groups are calculated by auth-service and included in JWTs as `actor_groups` so APIs can authorize a group without the shared starter knowing the actor catalog.
+   ```json
+   {
+     "tokenType": "Bearer",
+     "jwtToken": "<signed-jwt>",
+     "expiresAt": "2026-06-08T09:07:00Z"
+   }
+   ```
 
-3. Frontend sends this JWT to microservices using `Authorization: Bearer <jwt>`.
+   The JWT contains:
+   - the upstream session token/reference as `sid`
+   - application id as `app_id`
+   - actor type and actor groups from the request
+   - store and salesman details from the request
 
-Each frontend app login creates a separate session (`applicationId` is stored on the session). The OTP verification response includes a JWT with that same session id and expiry, so a user can be logged in separately on multiple apps without an extra frontend exchange call.
+   Actor groups are included in JWTs as `actor_groups` so APIs can authorize a group without the shared starter knowing the actor catalog.
+
+4. Frontend sends this JWT to microservices using `Authorization: Bearer <jwt>`.
+
+The external auth service remains responsible for authenticating the user, validating or revoking the upstream access/session token, and supplying trusted identity context to the JWT issuance endpoint.
 
 ## Authorization in microservices
 
@@ -70,7 +98,7 @@ If `@Authenticate` is present:
 2. Unknown `API_IDENTIFIER` returns `401`.
 3. Known identifier without a configured actor mapping returns `403`.
 4. Known identifier but disallowed actor type/group returns `403`.
-5. Store and salesman details come only from JWT claims produced by the auth response; the microservice does not look them up in its database.
+5. Store and salesman details come only from JWT claims produced by the JWT issuance response; the microservice does not look them up in its database.
 
 The starter auto-registers annotated API identifiers on application startup at `POST /internal/api-identifiers`. Auto-registration discovers service/path/method metadata; it does not grant access until auth-service has a policy mapping for the identifier.
 
@@ -88,10 +116,10 @@ This registry should be backed by persistent storage in production and managed t
 
 Microservices validate JWT signature and expiry using the auth service JWKS endpoint. Authorization data needed for the request is in the token:
 
-- `sid`: session id
+- `sid`: upstream session token/reference supplied by the external auth service
 - `app_id`: frontend application id
-- `actor_type`: actor value issued by auth-service
-- `actor_groups`: groups issued by auth-service
+- `actor_type`: actor value supplied by the trusted JWT issuance caller
+- `actor_groups`: groups supplied by the trusted JWT issuance caller
 - `store`: store details
 - `salesman`: salesman details
 
@@ -112,6 +140,7 @@ Recommended layout:
 ```yaml
 auth:
   jwt:
+    ttl: 30m
     key-id: ${JWT_KEY_ID}
     private-key-pem: ${JWT_PRIVATE_KEY_PEM}
     public-key-pem: ${JWT_PUBLIC_KEY_PEM}
@@ -131,31 +160,14 @@ For key rotation:
 Pure self-contained JWT validation cannot instantly invalidate tokens without checking some external state. There are three practical options:
 
 1. Short JWT TTL: simplest and fully offline, but revocation waits until expiry.
-2. Distributed revocation cache: auth-service publishes revoked session ids/JWT ids; microservices keep an in-memory cache and check it on each request. This repository implements the cache shape through `GET /internal/revocations` and the starter's `JwtRevocationCache`.
+2. Distributed revocation cache: the external auth/session service publishes revoked upstream session ids/JWT ids; microservices keep an in-memory cache and check it on each request. This repository keeps the starter cache shape through `GET /internal/revocations`, which currently returns an empty list until integrated with an external revocation source.
 3. Emergency key rotation: invalidates a broad set of tokens signed by a key, useful for incidents but disruptive.
 
-For changes to store admin/salesman/optometrist/usher/repair roles or assigned store, call:
-
-```http
-POST /internal/users/{salesmanId}/invalidate
-```
-
-That revokes active sessions for the user and publishes their session ids. Logout uses:
-
-```http
-DELETE /auth/sessions/{sessionToken}
-```
+For logout and role/store-assignment changes, revoke the user's upstream session in the external auth service and stop minting new JWTs with the old context. This auth service no longer exposes local logout, OTP verification, or session invalidation endpoints.
 
 In production, revocation publication should use Redis, Kafka, or another shared low-latency channel instead of periodic polling. The request path still avoids DB lookups; it checks only local cryptographic validation and in-memory policy/revocation caches.
 
 ## Local demo
-
-Seeded users all use OTP `123456`:
-
-- `S1001`: `SALESMAN`
-- `A1001`: `STORE_ADMIN`
-- `O1001`: `REMOTE_OPTOM` with `OPTOMETRIST` group
-- `D1001`: `DISPENSING_OPTOM` with `OPTOMETRIST` group
 
 Run:
 
@@ -164,4 +176,36 @@ mvn spring-boot:run -pl auth-service
 mvn spring-boot:run -pl example-service -Dspring-boot.run.arguments=--server.port=8081
 ```
 
-Then authenticate and call `GET http://localhost:8081/orders` with the JWT returned by OTP verification.
+Then issue a JWT for an already-authenticated external session:
+
+```bash
+curl -X POST http://localhost:8080/auth/jwt \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "sessionToken": "external-session-token-123",
+    "applicationId": "store-pos-web",
+    "store": {
+      "storeId": "store-001",
+      "storeCode": "BLR-KRM",
+      "name": "Koramangala Flagship",
+      "city": "Bengaluru",
+      "region": "South",
+      "attributes": {
+        "format": "FLAGSHIP",
+        "inventoryZone": "BLR-SOUTH"
+      }
+    },
+    "salesman": {
+      "salesmanId": "S1001",
+      "displayName": "Aarav Sales",
+      "actorType": "SALESMAN",
+      "attributes": {
+        "employeeCode": "EMP-S-1001",
+        "counter": "C3"
+      }
+    },
+    "actorGroups": ["STORE_STAFF"]
+  }'
+```
+
+Call `GET http://localhost:8081/orders` with `Authorization: Bearer <jwtToken>` from the response.

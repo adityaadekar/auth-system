@@ -1,15 +1,10 @@
 package com.example.authservice.auth;
 
-import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.example.authservice.session.SessionService;
 
 import jakarta.validation.Valid;
 
@@ -17,25 +12,14 @@ import jakarta.validation.Valid;
 @RequestMapping("/auth")
 @Validated
 public class AuthController {
-    private final OtpAuthenticationService otpAuthenticationService;
-    private final SessionService sessionService;
+    private final JwtIssuer jwtIssuer;
 
-    public AuthController(
-            OtpAuthenticationService otpAuthenticationService,
-            SessionService sessionService
-    ) {
-        this.otpAuthenticationService = otpAuthenticationService;
-        this.sessionService = sessionService;
+    public AuthController(JwtIssuer jwtIssuer) {
+        this.jwtIssuer = jwtIssuer;
     }
 
-    @PostMapping("/otp/verify")
-    public AuthResponse verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
-        return otpAuthenticationService.authenticate(request);
-    }
-
-    @DeleteMapping("/sessions/{sessionToken}")
-    public ResponseEntity<Void> logout(@PathVariable("sessionToken") String sessionToken) {
-        sessionService.logout(sessionToken);
-        return ResponseEntity.noContent().build();
+    @PostMapping("/jwt")
+    public JwtIssueResponse issueJwt(@Valid @RequestBody JwtIssueRequest request) {
+        return jwtIssuer.issue(request);
     }
 }
