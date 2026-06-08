@@ -4,8 +4,8 @@ Reference Spring Boot JWT issuance and authorization system for store users.
 
 ## Modules
 
-- `auth-service`: owns JWT issuance for users that were already authenticated by an external auth service, key publication, API identifier registry, actor values, and API-to-actor mappings. It does not verify OTP/password credentials or create local login sessions.
-- `authz-starter`: reusable Spring Boot starter/library for microservices. It provides `@Authenticate("API_IDENTIFIER")`, validates JWTs offline using JWKS, checks local API identifier policy cache, and exposes the authenticated principal without defining actor types.
+- `auth-service`: owns JWT issuance for users that were already authenticated by an external auth service, key publication, Redis-backed API identifier registry, actor values, and API-to-actor mappings. It does not verify OTP/password credentials or create local login sessions.
+- `authz-starter`: reusable Spring Boot starter/library for microservices. It provides `@Authenticate("API_IDENTIFIER")`, validates JWTs offline using JWKS, checks local API identifier policy cache, can refresh that cache from Redis policy-change events, and exposes the authenticated principal without defining actor types.
 - `example-service`: minimal protected service showing how another microservice integrates the starter.
 
 See [Auth and Authorization Design](docs/auth-authorization-design.md) for the full ownership model, portal-backed policy flow, refresh scenarios, and operational guidance.
@@ -110,7 +110,7 @@ The starter auto-registers annotated API identifiers on application startup at `
 - `GET /internal/api-identifiers?serviceName=order-service`: policy view consumed by microservices.
 - `GET /internal/api-identifiers/records`: operational view including paths and methods.
 
-This registry should be backed by persistent storage in production and managed through the auth portal. This repository uses an in-memory implementation to keep the example self-contained.
+This registry is backed by Redis by default and should be managed through the auth portal in production. For tests or a no-Redis local run, set `AUTH_API_REGISTRY_STORAGE=memory`.
 
 ## JWT authorization without DB lookup
 
@@ -123,7 +123,7 @@ Microservices validate JWT signature and expiry using the auth service JWKS endp
 - `store`: store details
 - `salesman`: salesman details
 
-API identifier policies are cached locally by the starter. This means normal requests do not perform database lookups. The cache can be refreshed from the registry service periodically and, in production, should also react to policy-change events.
+API identifier policies are cached locally by the starter. This means normal requests do not perform database lookups. The cache refreshes from the registry service periodically and can also refresh immediately from Redis policy-change events when `authz.policy-events.enabled=true`.
 
 ## Key storage in Vault
 
@@ -172,9 +172,12 @@ In production, revocation publication should use Redis, Kafka, or another shared
 Run:
 
 ```bash
+redis-server
 mvn spring-boot:run -pl auth-service
 mvn spring-boot:run -pl example-service -Dspring-boot.run.arguments=--server.port=8081
 ```
+
+If Redis is not available for a quick local run, start auth-service with `AUTH_ACTOR_CATALOG_STORAGE=memory AUTH_API_REGISTRY_STORAGE=memory`.
 
 Then issue a JWT for an already-authenticated external session:
 

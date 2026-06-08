@@ -46,11 +46,13 @@ Responsibilities:
 - Issue signed JWTs for that externally validated context.
 - Publish public signing keys through JWKS.
 - Store API identifiers and access mappings in persistent storage.
+- Store actor catalog records in persistent storage instead of compiled enums/classes.
 - Serve internal policy APIs consumed by microservices.
 - Serve portal APIs used by admins to configure actors and mappings.
+- Publish policy-change events when API identifier mappings are updated.
 - Expose the revocation API shape consumed by microservices; production deployments should connect it to the external auth/session revocation source.
 
-`auth-service` is the only service that should know the complete actor catalog. If a new actor is added, it is added to auth-service data/configuration and portal records, not to the common library.
+`auth-service` is the only service that should know the complete actor catalog. If a new actor is added, it is added to the actor catalog in persistent storage, not to a Java enum/class or the common library.
 
 ### Authorization starter/common library
 
@@ -135,6 +137,8 @@ Example fields:
 - `created_at`
 - `updated_at`
 
+In the Redis-backed implementation this is stored as a Redis hash, for example key `auth:actor-types`, where each hash field is the actor type (`SALESMAN`) and the value is the serialized actor catalog record. `auth-service` loads actor records from this store when issuing JWTs and rejects unknown or inactive actor types.
+
 ### Actor groups
 
 Stores higher-level groups such as `OPTOMETRIST`.
@@ -170,6 +174,8 @@ Example fields:
 - `updated_at`
 
 API identifiers can be auto-discovered by microservices at startup, then reviewed and configured through the portal.
+
+In the Redis-backed implementation this is stored as a Redis hash, for example key `auth:api-identifiers`, where each hash field is the API identifier and the value is the serialized identifier record.
 
 ### API access policy
 
@@ -332,6 +338,25 @@ Refresh options:
 - Periodic polling: each microservice pulls policies every configured interval, for example every minute.
 - Push invalidation: auth-service publishes a policy-changed event through Redis, Kafka, SNS/SQS, or another bus; microservices refresh immediately.
 - Manual refresh: portal exposes an operational action to trigger refresh for urgent changes.
+
+### Redis-backed policy update and local cache refresh flow
+
+Use auth-service as the writer instead of letting services edit Redis directly.
+
+1. Admin changes the allowed actors/groups for an identifier in the portal.
+2. Portal calls an auth-service portal/internal API to save the change.
+3. auth-service writes the updated identifier/policy record to Redis, for example hash `auth:api-identifiers` field `STORE_ORDERS_READ`.
+4. auth-service updates the policy version or `updated_at`.
+5. auth-service publishes a Redis pub/sub message on `auth:policy-changes` with the changed API identifier.
+6. Each microservice starter has a local in-memory `ApiIdentifierCache`.
+7. If Redis policy events are enabled for that microservice, its starter is subscribed to `auth:policy-changes`.
+8. When the message arrives, the starter calls `ApiIdentifierCache.refresh()`.
+9. The refresh calls auth-service `GET /internal/api-identifiers?serviceName=<service>`.
+10. auth-service reads the latest records from Redis and returns the current policies for that service.
+11. The starter replaces its local cache with the latest policy set.
+12. New requests are authorized with the updated cache; no request-time Redis or database lookup is needed.
+
+If a Redis pub/sub message is missed because a service was restarting or disconnected, the existing periodic polling refresh still pulls the latest policy from auth-service. If an emergency operational tool writes to Redis directly, it must also publish the same `auth:policy-changes` message or trigger the manual refresh action; otherwise services update on the next polling interval.
 
 Recommended production behavior:
 
@@ -572,14 +597,14 @@ Role downgrades and user disablement are more sensitive than permission addition
 
 Before production:
 
-- Move the in-memory API registry to persistent storage.
+- Run Redis or another persistent store for actor catalog and API identifier policy records.
 - Connect revocation fetches to the external auth/session service or a distributed revocation store.
 - Add portal screens for actors, groups, API identifiers, and mappings.
 - Add audit logs for all policy and role changes.
 - Protect `POST /auth/jwt` with service authentication, network policy, and audit logging.
 - Protect `/internal/**` endpoints with service authentication and network policy.
 - Use short JWT TTLs.
-- Add push events for policy and revocation changes.
+- Enable Redis/Kafka/SNS/SQS push events for policy and revocation changes.
 - Keep periodic polling as fallback.
 - Monitor policy refresh failures and revocation lag.
 - Keep JWT private signing keys only in auth-service, preferably loaded from Vault/KMS.

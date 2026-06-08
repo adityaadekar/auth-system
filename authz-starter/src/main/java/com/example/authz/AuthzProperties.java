@@ -18,6 +18,7 @@ public class AuthzProperties {
     private URI registryUri = DEFAULT_AUTH_SERVICE_URI;
     private boolean autoRegisterApis = true;
     private Duration registryRefreshInterval = Duration.ofMinutes(1);
+    private PolicyEvents policyEvents = new PolicyEvents();
 
     public void applyEnvironmentDefaults(Environment environment) {
         if (!StringUtils.hasText(serviceName)) {
@@ -85,6 +86,35 @@ public class AuthzProperties {
 
     public void setRegistryRefreshInterval(Duration registryRefreshInterval) {
         this.registryRefreshInterval = registryRefreshInterval;
+    }
+
+    public PolicyEvents getPolicyEvents() {
+        return policyEvents;
+    }
+
+    public void setPolicyEvents(PolicyEvents policyEvents) {
+        this.policyEvents = policyEvents;
+    }
+
+    public static class PolicyEvents {
+        private boolean enabled;
+        private String channel = "auth:policy-changes";
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getChannel() {
+            return channel;
+        }
+
+        public void setChannel(String channel) {
+            this.channel = channel;
+        }
     }
 
 }
