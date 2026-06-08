@@ -11,6 +11,7 @@ public class ApiIdentifierCache {
     private final AuthzProperties properties;
     private final ApiIdentifierRegistryClient client;
     private final Clock clock;
+    private final Map<String, ApiAccessPolicy> localPolicies = new ConcurrentHashMap<>();
     private final Map<String, ApiAccessPolicy> policies = new ConcurrentHashMap<>();
     private volatile Instant lastRefresh = Instant.EPOCH;
 
@@ -32,6 +33,14 @@ public class ApiIdentifierCache {
         lastRefresh = clock.instant();
     }
 
+    public void registerLocalPolicies(Collection<ApiIdentifierRegistration> registrations) {
+        for (ApiIdentifierRegistration registration : registrations) {
+            ApiAccessPolicy policy = registration.toPolicy();
+            localPolicies.put(policy.getApiIdentifier(), policy);
+            policies.putIfAbsent(policy.getApiIdentifier(), policy);
+        }
+    }
+
     private void refreshIfStale() {
         if (lastRefresh.plus(properties.getRegistryRefreshInterval()).isBefore(clock.instant())) {
             refresh();
@@ -47,6 +56,7 @@ public class ApiIdentifierCache {
     }
 
     private void loadLocalPolicies() {
+        localPolicies.forEach(policies::put);
         properties.getApiPolicies().forEach((identifier, policy) -> {
             policy.setApiIdentifier(identifier);
             if (policy.getServiceName() == null) {

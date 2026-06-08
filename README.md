@@ -47,22 +47,15 @@ Add the starter dependency:
 </dependency>
 ```
 
-Configure the service:
-
-```yaml
-authz:
-  enabled: true
-  service-name: order-service
-  issuer: https://auth.example.com
-  jwk-set-uri: https://auth.example.com/.well-known/jwks.json
-  registry-uri: https://auth.example.com
-```
-
 Annotate only APIs that need authentication:
 
 ```java
 @GetMapping("/orders")
-@Authenticate("STORE_ORDERS_READ")
+@Authenticate(
+    value = "STORE_ORDERS_READ",
+    allowedActorTypes = {ActorType.STORE_ADMIN, ActorType.SALESMAN},
+    allowedActorGroups = {"OPTOMETRIST"}
+)
 public List<Order> orders() {
     AuthenticatedPrincipal principal = RequestAuthContextHolder.requireCurrent();
     return orderService.findForStore(principal.store().storeId());
@@ -71,6 +64,8 @@ public List<Order> orders() {
 
 If `@Authenticate` is absent, the starter does not authenticate or authorize that endpoint.
 
+Consuming microservices should not define `authz` configuration. The starter supplies auth-service, JWKS, registry, auto-registration, revocation cache, and service-name defaults; the API identifier and optional default access policy live on the annotation.
+
 If `@Authenticate` is present:
 
 1. Missing/invalid/revoked JWT returns `401`.
@@ -78,7 +73,7 @@ If `@Authenticate` is present:
 3. Known identifier but disallowed actor type/group returns `403`.
 4. Store and salesman details come only from JWT claims produced by the auth response; the microservice does not look them up in its database.
 
-The starter auto-registers annotated API identifiers on application startup at `POST /internal/api-identifiers`. Services can also define default access policy in their own `authz.api-policies` config. Empty allowed actor lists mean "any authenticated actor".
+The starter auto-registers annotated API identifiers on application startup at `POST /internal/api-identifiers`. Empty allowed actor lists on `@Authenticate` mean "any authenticated actor".
 
 ## API identifier registry
 
@@ -123,7 +118,7 @@ auth:
     public-key-pem: ${JWT_PUBLIC_KEY_PEM}
 ```
 
-Microservices do not need the private key. They only need the issuer and `jwk-set-uri`, or a Vault-provided auth-service URL. They fetch public keys through `/.well-known/jwks.json` and cache them through the starter's Nimbus verifier.
+Microservices do not need the private key or local authz config. They use the starter defaults to fetch public keys through `/.well-known/jwks.json` and cache them through the starter's Nimbus verifier.
 
 For key rotation:
 
@@ -167,7 +162,7 @@ Run:
 
 ```bash
 mvn spring-boot:run -pl auth-service
-mvn spring-boot:run -pl example-service
+mvn spring-boot:run -pl example-service -Dspring-boot.run.arguments=--server.port=8081
 ```
 
 Then authenticate and call `GET http://localhost:8081/orders` with the JWT returned by OTP verification.

@@ -6,17 +6,33 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.core.env.Environment;
+import org.springframework.util.StringUtils;
 
 @ConfigurationProperties(prefix = "authz")
 public class AuthzProperties {
+    private static final URI DEFAULT_AUTH_SERVICE_URI = URI.create("http://localhost:8080");
+
     private boolean enabled = true;
-    private String serviceName = "unknown-service";
-    private URI issuer;
-    private URI jwkSetUri;
-    private URI registryUri;
+    private String serviceName;
+    private URI issuer = DEFAULT_AUTH_SERVICE_URI;
+    private URI jwkSetUri = DEFAULT_AUTH_SERVICE_URI.resolve("/.well-known/jwks.json");
+    private URI registryUri = DEFAULT_AUTH_SERVICE_URI;
     private boolean autoRegisterApis = true;
     private Duration registryRefreshInterval = Duration.ofMinutes(1);
     private Map<String, ApiAccessPolicy> apiPolicies = new LinkedHashMap<>();
+
+    public void applyEnvironmentDefaults(Environment environment) {
+        if (!StringUtils.hasText(serviceName)) {
+            serviceName = environment.getProperty("spring.application.name", "application");
+        }
+        if (jwkSetUri == null && issuer != null) {
+            jwkSetUri = issuer.resolve("/.well-known/jwks.json");
+        }
+        if (registryUri == null) {
+            registryUri = issuer;
+        }
+    }
 
     public boolean isEnabled() {
         return enabled;

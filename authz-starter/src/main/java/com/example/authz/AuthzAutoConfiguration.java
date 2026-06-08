@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -33,25 +34,43 @@ public class AuthzAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    ApiIdentifierRegistryClient apiIdentifierRegistryClient(AuthzProperties properties, RestClient.Builder builder) {
+    ApiIdentifierRegistryClient apiIdentifierRegistryClient(
+            AuthzProperties properties,
+            Environment environment,
+            RestClient.Builder builder
+    ) {
+        properties.applyEnvironmentDefaults(environment);
         return new ApiIdentifierRegistryClient(properties, builder);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    ApiIdentifierCache apiIdentifierCache(AuthzProperties properties, ApiIdentifierRegistryClient client, Clock clock) {
+    ApiIdentifierCache apiIdentifierCache(
+            AuthzProperties properties,
+            Environment environment,
+            ApiIdentifierRegistryClient client,
+            Clock clock
+    ) {
+        properties.applyEnvironmentDefaults(environment);
         return new ApiIdentifierCache(properties, client, clock);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    JwtRevocationCache jwtRevocationCache(AuthzProperties properties, ApiIdentifierRegistryClient client, Clock clock) {
+    JwtRevocationCache jwtRevocationCache(
+            AuthzProperties properties,
+            Environment environment,
+            ApiIdentifierRegistryClient client,
+            Clock clock
+    ) {
+        properties.applyEnvironmentDefaults(environment);
         return new JwtRevocationCache(properties, client, clock);
     }
 
     @Bean
     @ConditionalOnMissingBean
-    JwtTokenVerifier jwtTokenVerifier(AuthzProperties properties, Clock clock) {
+    JwtTokenVerifier jwtTokenVerifier(AuthzProperties properties, Environment environment, Clock clock) {
+        properties.applyEnvironmentDefaults(environment);
         return new JwtTokenVerifier(properties, clock);
     }
 
@@ -66,7 +85,12 @@ public class AuthzAutoConfiguration {
     }
 
     @Bean
-    WebMvcConfigurer authzWebMvcConfigurer(AuthzProperties properties, AuthenticateInterceptor authenticateInterceptor) {
+    WebMvcConfigurer authzWebMvcConfigurer(
+            AuthzProperties properties,
+            Environment environment,
+            AuthenticateInterceptor authenticateInterceptor
+    ) {
+        properties.applyEnvironmentDefaults(environment);
         return new WebMvcConfigurer() {
             @Override
             public void addInterceptors(InterceptorRegistry registry) {
@@ -81,9 +105,12 @@ public class AuthzAutoConfiguration {
     @ConditionalOnMissingBean
     ApiDescriptorScanner apiDescriptorScanner(
             AuthzProperties properties,
+            Environment environment,
             ApiIdentifierRegistryClient registryClient,
+            ApiIdentifierCache apiIdentifierCache,
             Collection<RequestMappingInfoHandlerMapping> handlerMappings
     ) {
-        return new ApiDescriptorScanner(properties, registryClient, handlerMappings);
+        properties.applyEnvironmentDefaults(environment);
+        return new ApiDescriptorScanner(properties, registryClient, apiIdentifierCache, handlerMappings);
     }
 }

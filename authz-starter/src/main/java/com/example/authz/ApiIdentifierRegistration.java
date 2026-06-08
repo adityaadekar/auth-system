@@ -11,6 +11,15 @@ public class ApiIdentifierRegistration {
     private Set<ActorType> allowedActorTypes = new LinkedHashSet<>();
     private Set<String> allowedActorGroups = new LinkedHashSet<>();
 
+    public ApiAccessPolicy toPolicy() {
+        ApiAccessPolicy policy = new ApiAccessPolicy();
+        policy.setServiceName(serviceName);
+        policy.setApiIdentifier(apiIdentifier);
+        policy.setAllowedActorTypes(allowedActorTypes);
+        policy.setAllowedActorGroups(allowedActorGroups);
+        return policy;
+    }
+
     public String getServiceName() {
         return serviceName;
     }
