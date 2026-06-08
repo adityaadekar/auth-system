@@ -16,7 +16,13 @@ import com.example.authservice.auth.JwtIssueRequest;
 import com.example.authservice.auth.JwtIssueResponse;
 import com.nimbusds.jwt.SignedJWT;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = {
+                "auth.actor-catalog.storage=memory",
+                "auth.api-registry.storage=memory"
+        }
+)
 class AuthFlowIntegrationTest {
     @Autowired
     private TestRestTemplate restTemplate;
@@ -72,5 +78,37 @@ class AuthFlowIntegrationTest {
                 Map.class
         );
         assertThat(otpResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void rejectsUnknownActorType() {
+        JwtIssueRequest request = new JwtIssueRequest(
+                "external-session-token-123",
+                "store-pos-web",
+                new JwtIssueRequest.StoreClaims(
+                        "store-001",
+                        "BLR-KRM",
+                        "Koramangala Flagship",
+                        "Bengaluru",
+                        "South",
+                        Map.of()
+                ),
+                new JwtIssueRequest.SalesmanClaims(
+                        "S1001",
+                        "Aarav Sales",
+                        "UNKNOWN_ACTOR",
+                        Map.of()
+                ),
+                Set.of()
+        );
+
+        ResponseEntity<Map> authResponse = restTemplate.postForEntity(
+                "/auth/jwt",
+                request,
+                Map.class
+        );
+
+        assertThat(authResponse.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(authResponse.getBody()).containsEntry("error", "unknown_actor_type");
     }
 }

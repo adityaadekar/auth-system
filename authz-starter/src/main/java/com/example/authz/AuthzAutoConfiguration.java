@@ -4,12 +4,16 @@ import java.time.Clock;
 import java.util.Collection;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -111,5 +115,24 @@ public class AuthzAutoConfiguration {
     ) {
         properties.applyEnvironmentDefaults(environment);
         return new ApiDescriptorScanner(properties, registryClient, handlerMappings);
+    }
+
+    @Bean
+    @ConditionalOnClass(RedisMessageListenerContainer.class)
+    @ConditionalOnProperty(prefix = "authz.policy-events", name = "enabled", havingValue = "true")
+    RedisMessageListenerContainer authzPolicyChangeListener(
+            AuthzProperties properties,
+            Environment environment,
+            RedisConnectionFactory connectionFactory,
+            ApiIdentifierCache apiIdentifierCache
+    ) {
+        properties.applyEnvironmentDefaults(environment);
+        RedisMessageListenerContainer container = new RedisMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+        container.addMessageListener(
+                (message, pattern) -> apiIdentifierCache.refresh(),
+                new ChannelTopic(properties.getPolicyEvents().getChannel())
+        );
+        return container;
     }
 }

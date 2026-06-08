@@ -24,23 +24,30 @@ import com.nimbusds.jwt.SignedJWT;
 public class JwtIssuer {
     private final AuthProperties properties;
     private final JwtKeyPairProvider keyPairProvider;
+    private final ActorCatalogService actorCatalogService;
     private final Clock clock;
 
     public JwtIssuer(
             AuthProperties properties,
             JwtKeyPairProvider keyPairProvider,
+            ActorCatalogService actorCatalogService,
             Clock clock
     ) {
         this.properties = properties;
         this.keyPairProvider = keyPairProvider;
+        this.actorCatalogService = actorCatalogService;
         this.clock = clock;
     }
 
     public JwtIssueResponse issue(JwtIssueRequest request) {
         Instant now = clock.instant();
         Instant expiresAt = now.plus(properties.getJwt().getTtl());
+        ActorCatalogService.ActorCatalogResolution actor = actorCatalogService.resolve(
+                request.salesman().actorType(),
+                request.normalizedActorGroups()
+        );
         StoreContext store = request.storeContext();
-        SalesmanContext salesman = request.salesmanContext();
+        SalesmanContext salesman = request.salesmanContext(actor.actorType());
         try {
             String actorType = salesman.actorType();
             JWTClaimsSet claims = new JWTClaimsSet.Builder()
@@ -53,7 +60,7 @@ public class JwtIssuer {
                     .claim("sid", request.sessionToken())
                     .claim("app_id", request.applicationId())
                     .claim("actor_type", actorType)
-                    .claim("actor_groups", request.normalizedActorGroups())
+                    .claim("actor_groups", actor.actorGroups())
                     .claim("store", storeClaims(store))
                     .claim("salesman", salesmanClaims(salesman))
                     .build();

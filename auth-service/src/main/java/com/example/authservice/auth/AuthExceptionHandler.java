@@ -13,4 +13,9 @@ public class AuthExceptionHandler {
     ResponseEntity<Map<String, String>> validationFailed(MethodArgumentNotValidException ex) {
         return ResponseEntity.badRequest().body(Map.of("error", "invalid_request"));
     }
+
+    @ExceptionHandler(UnknownActorTypeException.class)
+    ResponseEntity<Map<String, String>> unknownActorType(UnknownActorTypeException ex) {
+        return ResponseEntity.badRequest().body(Map.of("error", "unknown_actor_type"));
+    }
 }

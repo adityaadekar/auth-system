@@ -54,31 +54,63 @@ public class ApiIdentifierRecord {
         return serviceName;
     }
 
+    public void setServiceName(String serviceName) {
+        this.serviceName = serviceName;
+    }
+
     public String getApiIdentifier() {
         return apiIdentifier;
+    }
+
+    public void setApiIdentifier(String apiIdentifier) {
+        this.apiIdentifier = apiIdentifier;
     }
 
     public Set<String> getPathPatterns() {
         return pathPatterns;
     }
 
+    public void setPathPatterns(Set<String> pathPatterns) {
+        this.pathPatterns = pathPatterns == null ? new LinkedHashSet<>() : pathPatterns;
+    }
+
     public Set<String> getHttpMethods() {
         return httpMethods;
+    }
+
+    public void setHttpMethods(Set<String> httpMethods) {
+        this.httpMethods = httpMethods == null ? new LinkedHashSet<>() : httpMethods;
     }
 
     public Set<String> getAllowedActorTypes() {
         return allowedActorTypes;
     }
 
+    public void setAllowedActorTypes(Set<String> allowedActorTypes) {
+        this.allowedActorTypes = allowedActorTypes == null ? new LinkedHashSet<>() : allowedActorTypes;
+    }
+
     public Set<String> getAllowedActorGroups() {
         return allowedActorGroups;
+    }
+
+    public void setAllowedActorGroups(Set<String> allowedActorGroups) {
+        this.allowedActorGroups = allowedActorGroups == null ? new LinkedHashSet<>() : allowedActorGroups;
     }
 
     public boolean isActive() {
         return active;
     }
 
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }

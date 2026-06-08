@@ -30,10 +30,14 @@ public record JwtIssueRequest(
     }
 
     public SalesmanContext salesmanContext() {
+        return salesmanContext(salesman.actorType());
+    }
+
+    public SalesmanContext salesmanContext(String actorType) {
         return new SalesmanContext(
                 salesman.salesmanId(),
                 salesman.displayName(),
-                salesman.actorType(),
+                actorType,
                 copyAttributes(salesman.attributes())
         );
     }

@@ -13,3 +13,52 @@ auth:
   jwt:
     ttl: 30m
     key-id: local-dev-key
+  actor-catalog:
+    storage: ${AUTH_ACTOR_CATALOG_STORAGE:redis}
+    redis-key: auth:actor-types
+    bootstrap-enabled: true
+    bootstrap:
+      - actor-type: STORE_ADMIN
+        display-name: Store Admin
+        description: Store-level administrator
+        active: true
+      - actor-type: SALESMAN
+        display-name: Salesman
+        description: Store sales associate
+        active: true
+      - actor-type: OPTOMETRIST
+        display-name: Optometrist
+        description: Optometrist actor
+        active: true
+        groups:
+          - OPTOMETRIST
+      - actor-type: USHER
+        display-name: Usher
+        description: Store usher
+        active: true
+      - actor-type: REMOTE_OPTOM
+        display-name: Remote Optometrist
+        description: Remote optometrist
+        active: true
+        groups:
+          - OPTOMETRIST
+      - actor-type: DISPENSING_OPTOM
+        display-name: Dispensing Optometrist
+        description: Dispensing optometrist
+        active: true
+        groups:
+          - OPTOMETRIST
+      - actor-type: KIDS_OPTOM
+        display-name: Kids Optometrist
+        description: Kids optometrist
+        active: true
+        groups:
+          - OPTOMETRIST
+      - actor-type: REPAIR_SPECIALIST
+        display-name: Repair Specialist
+        description: Repair specialist
+        active: true
+  api-registry:
+    storage: ${AUTH_API_REGISTRY_STORAGE:redis}
+    redis-key: auth:api-identifiers
+    policy-change-channel: auth:policy-changes
