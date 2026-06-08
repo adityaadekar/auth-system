@@ -12,8 +12,13 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisPassword;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -115,6 +120,35 @@ public class AuthzAutoConfiguration {
     ) {
         properties.applyEnvironmentDefaults(environment);
         return new ApiDescriptorScanner(properties, registryClient, handlerMappings);
+    }
+
+    @Bean
+    @ConditionalOnClass(LettuceConnectionFactory.class)
+    @ConditionalOnMissingBean(RedisConnectionFactory.class)
+    @ConditionalOnProperty(prefix = "authz.policy-events", name = "enabled", havingValue = "true")
+    RedisConnectionFactory authzRedisConnectionFactory(AuthzProperties properties, Environment environment) {
+        properties.applyEnvironmentDefaults(environment);
+
+        AuthzProperties.Redis redis = properties.getRedis();
+        RedisStandaloneConfiguration redisConfiguration = new RedisStandaloneConfiguration();
+        redisConfiguration.setHostName(redis.getHost());
+        redisConfiguration.setPort(redis.getPort());
+        redisConfiguration.setDatabase(redis.getDatabase());
+        if (StringUtils.hasText(redis.getUsername())) {
+            redisConfiguration.setUsername(redis.getUsername());
+        }
+        if (StringUtils.hasText(redis.getPassword())) {
+            redisConfiguration.setPassword(RedisPassword.of(redis.getPassword()));
+        }
+
+        LettuceClientConfiguration.LettuceClientConfigurationBuilder clientConfiguration =
+                LettuceClientConfiguration.builder()
+                        .commandTimeout(redis.getTimeout());
+        if (redis.isSsl()) {
+            clientConfiguration.useSsl();
+        }
+
+        return new LettuceConnectionFactory(redisConfiguration, clientConfiguration.build());
     }
 
     @Bean
