@@ -13,7 +13,6 @@ import org.springframework.http.ResponseEntity;
 
 import com.example.authservice.auth.AuthResponse;
 import com.example.authservice.auth.VerifyOtpRequest;
-import com.example.authz.ActorType;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class AuthFlowIntegrationTest {
@@ -31,7 +30,7 @@ class AuthFlowIntegrationTest {
         assertThat(authResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(authResponse.getBody()).isNotNull();
         assertThat(authResponse.getBody().store().storeId()).isEqualTo("store-001");
-        assertThat(authResponse.getBody().salesman().actorType()).isEqualTo(ActorType.SALESMAN);
+        assertThat(authResponse.getBody().salesman().actorType()).isEqualTo("SALESMAN");
         assertThat(authResponse.getBody().sessionToken()).isNotBlank();
         assertThat(authResponse.getBody().jwtToken()).isNotBlank();
 

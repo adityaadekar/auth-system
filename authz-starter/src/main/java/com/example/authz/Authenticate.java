@@ -9,8 +9,4 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Authenticate {
     String value();
-
-    ActorType[] allowedActorTypes() default {};
-
-    String[] allowedActorGroups() default {};
 }

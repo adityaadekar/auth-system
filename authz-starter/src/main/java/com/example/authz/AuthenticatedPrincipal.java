@@ -1,6 +1,7 @@
 package com.example.authz;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.Set;
 
 public record AuthenticatedPrincipal(
@@ -10,12 +11,12 @@ public record AuthenticatedPrincipal(
         String jwtId,
         StoreContext store,
         SalesmanContext salesman,
-        ActorType actorType,
+        String actorType,
         Set<String> actorGroups,
         Instant expiresAt
 ) {
-    public boolean hasActorType(ActorType type) {
-        return actorType == type;
+    public boolean hasActorType(String type) {
+        return Objects.equals(actorType, type);
     }
 
     public boolean hasActorGroup(String group) {

@@ -6,14 +6,13 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
 import com.example.authservice.keys.JwtKeyPairProvider;
 import com.example.authservice.session.SessionRecord;
-import com.example.authservice.session.SessionService;
-import com.example.authz.ActorType;
 import com.example.authz.SalesmanContext;
 import com.example.authz.StoreContext;
 import com.nimbusds.jose.JOSEException;
@@ -25,34 +24,24 @@ import com.nimbusds.jwt.SignedJWT;
 
 @Service
 public class JwtIssuer {
-    private final SessionService sessionService;
     private final AuthProperties properties;
     private final JwtKeyPairProvider keyPairProvider;
     private final Clock clock;
 
     public JwtIssuer(
-            SessionService sessionService,
             AuthProperties properties,
             JwtKeyPairProvider keyPairProvider,
             Clock clock
     ) {
-        this.sessionService = sessionService;
         this.properties = properties;
         this.keyPairProvider = keyPairProvider;
         this.clock = clock;
     }
 
-    public JwtExchangeResponse exchange(ExchangeSessionRequest request) {
-        SessionRecord session = sessionService.findActive(request.sessionToken())
-                .orElseThrow(() -> new AuthenticationFailedException("Invalid or expired session token"));
-        String jwt = issue(session);
-        return new JwtExchangeResponse(session.store(), session.salesman(), jwt, session.expiresAt());
-    }
-
     public String issue(SessionRecord session) {
         Instant now = clock.instant();
         try {
-            ActorType actorType = session.salesman().actorType();
+            String actorType = session.salesman().actorType();
             JWTClaimsSet claims = new JWTClaimsSet.Builder()
                     .issuer(properties.getIssuer().toString())
                     .subject(session.salesman().salesmanId())
@@ -62,8 +51,8 @@ public class JwtIssuer {
                     .expirationTime(Date.from(session.expiresAt()))
                     .claim("sid", session.sessionId())
                     .claim("app_id", session.applicationId())
-                    .claim("actor_type", actorType.name())
-                    .claim("actor_groups", actorType.groups())
+                    .claim("actor_type", actorType)
+                    .claim("actor_groups", actorGroups(actorType))
                     .claim("store", storeClaims(session.store()))
                     .claim("salesman", salesmanClaims(session.salesman()))
                     .build();
@@ -93,7 +82,11 @@ public class JwtIssuer {
         Map<String, Object> claims = new LinkedHashMap<>(salesman.attributes());
         claims.put("salesmanId", salesman.salesmanId());
         claims.put("displayName", salesman.displayName());
-        claims.put("actorType", salesman.actorType().name());
+        claims.put("actorType", salesman.actorType());
         return claims;
+    }
+
+    private Set<String> actorGroups(String actorType) {
+        return ActorType.valueOf(actorType).groups();
     }
 }
