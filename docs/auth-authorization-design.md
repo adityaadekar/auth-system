@@ -358,6 +358,25 @@ Use auth-service as the writer instead of letting services edit Redis directly.
 
 If a Redis pub/sub message is missed because a service was restarting or disconnected, the existing periodic polling refresh still pulls the latest policy from auth-service. If an emergency operational tool writes to Redis directly, it must also publish the same `auth:policy-changes` message or trigger the manual refresh action; otherwise services update on the next polling interval.
 
+Microservices configure this through the common `authz-starter` library:
+
+```yaml
+authz:
+  policy-events:
+    enabled: true
+    channel: auth:policy-changes
+  redis:
+    host: redis
+    port: 6379
+    database: 0
+    username: ${REDIS_USERNAME:}
+    password: ${REDIS_PASSWORD:}
+    ssl: false
+    timeout: 2s
+```
+
+If the microservice already defines a `RedisConnectionFactory`, the starter uses that bean. Otherwise, when `authz.policy-events.enabled=true`, the starter creates a Redis connection from `authz.redis.*`.
+
 Recommended production behavior:
 
 - Use push invalidation for quick propagation.
