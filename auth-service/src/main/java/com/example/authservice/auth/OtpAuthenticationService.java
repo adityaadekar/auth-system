@@ -9,10 +9,16 @@ import com.example.authservice.session.SessionService;
 public class OtpAuthenticationService {
     private final SalesmanDirectory salesmanDirectory;
     private final SessionService sessionService;
+    private final JwtIssuer jwtIssuer;
 
-    public OtpAuthenticationService(SalesmanDirectory salesmanDirectory, SessionService sessionService) {
+    public OtpAuthenticationService(
+            SalesmanDirectory salesmanDirectory,
+            SessionService sessionService,
+            JwtIssuer jwtIssuer
+    ) {
         this.salesmanDirectory = salesmanDirectory;
         this.sessionService = sessionService;
+        this.jwtIssuer = jwtIssuer;
     }
 
     public AuthResponse authenticate(VerifyOtpRequest request) {
@@ -28,6 +34,12 @@ public class OtpAuthenticationService {
                 assignment.store(),
                 assignment.salesman()
         );
-        return new AuthResponse(assignment.store(), assignment.salesman(), session.sessionToken(), session.expiresAt());
+        return new AuthResponse(
+                assignment.store(),
+                assignment.salesman(),
+                session.sessionToken(),
+                jwtIssuer.issue(session),
+                session.expiresAt()
+        );
     }
 }

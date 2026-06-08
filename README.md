@@ -21,20 +21,19 @@ Reference Spring Boot authentication and authorization system for store users.
    }
    ```
 
-2. `auth-service` validates `salesmanId + otp`, resolves the user's assigned store and salesman profile, and returns:
+2. `auth-service` validates `salesmanId + otp`, resolves the user's assigned store and salesman profile, creates a session, and returns:
    - store details
    - salesman details
    - flat actor type: `STORE_ADMIN`, `SALESMAN`, `OPTOMETRIST`, `USHER`, `REMOTE_OPTOM`, `DISPENSING_OPTOM`, `KIDS_OPTOM`, `REPAIR_SPECIALIST`
    - opaque session token
+   - signed JWT
    - expiry
 
    Remote, dispensing, and kids optoms are still returned in this flat form, but JWTs also carry `actor_groups: ["OPTOMETRIST"]` so APIs can authorize all optometrists without listing every optom subtype.
 
-3. Frontend calls `POST /auth/jwt/exchange` with the session token.
-4. `auth-service` returns a signed JWT with the same expiry and the same store/salesman details embedded as claims.
-5. Frontend sends this JWT to microservices using `Authorization: Bearer <jwt>`.
+3. Frontend sends this JWT to microservices using `Authorization: Bearer <jwt>`.
 
-Each frontend app login creates a separate session (`applicationId` is stored on the session). Exchanging each session produces a JWT with that same session id and expiry, so a user can be logged in separately on multiple apps.
+Each frontend app login creates a separate session (`applicationId` is stored on the session). The OTP verification response includes a JWT with that same session id and expiry, so a user can be logged in separately on multiple apps without an extra frontend exchange call.
 
 ## Authorization in microservices
 
@@ -171,4 +170,4 @@ mvn spring-boot:run -pl auth-service
 mvn spring-boot:run -pl example-service
 ```
 
-Then authenticate, exchange the session for a JWT, and call `GET http://localhost:8081/orders`.
+Then authenticate and call `GET http://localhost:8081/orders` with the JWT returned by OTP verification.

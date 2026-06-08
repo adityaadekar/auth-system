@@ -9,6 +9,7 @@ public record AuthResponse(
         StoreContext store,
         SalesmanContext salesman,
         String sessionToken,
+        String jwtToken,
         Instant expiresAt
 ) {
 }
