@@ -34,12 +34,12 @@ public class ApiIdentifierRegistryController {
     }
 
     @GetMapping("/internal/api-identifiers")
-    public List<ApiAccessPolicy> policies(@RequestParam(required = false) String serviceName) {
+    public List<ApiAccessPolicy> policies(@RequestParam(name = "serviceName", required = false) String serviceName) {
         return registryService.policies(serviceName);
     }
 
     @GetMapping("/internal/api-identifiers/records")
-    public List<ApiIdentifierRecord> records(@RequestParam(required = false) String serviceName) {
+    public List<ApiIdentifierRecord> records(@RequestParam(name = "serviceName", required = false) String serviceName) {
         return registryService.records(serviceName);
     }
 
@@ -49,12 +49,12 @@ public class ApiIdentifierRegistryController {
     }
 
     @GetMapping("/internal/revocations")
-    public Collection<RevokedToken> revocations(@RequestParam(required = false) String serviceName) {
+    public Collection<RevokedToken> revocations(@RequestParam(name = "serviceName", required = false) String serviceName) {
         return revocationRepository.findAll();
     }
 
     @PostMapping("/internal/users/{salesmanId}/invalidate")
-    public Collection<SessionRecord> invalidateSalesmanSessions(@PathVariable String salesmanId) {
+    public Collection<SessionRecord> invalidateSalesmanSessions(@PathVariable("salesmanId") String salesmanId) {
         return sessionService.invalidateSalesmanSessions(salesmanId);
     }
 }

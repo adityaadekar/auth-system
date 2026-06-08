@@ -42,7 +42,7 @@ public class AuthController {
     }
 
     @DeleteMapping("/sessions/{sessionToken}")
-    public ResponseEntity<Void> logout(@PathVariable String sessionToken) {
+    public ResponseEntity<Void> logout(@PathVariable("sessionToken") String sessionToken) {
         sessionService.logout(sessionToken);
         return ResponseEntity.noContent().build();
     }
