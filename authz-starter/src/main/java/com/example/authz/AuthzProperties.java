@@ -19,6 +19,7 @@ public class AuthzProperties {
     private boolean autoRegisterApis = true;
     private Duration registryRefreshInterval = Duration.ofMinutes(1);
     private PolicyEvents policyEvents = new PolicyEvents();
+    private Redis redis = new Redis();
 
     public void applyEnvironmentDefaults(Environment environment) {
         if (!StringUtils.hasText(serviceName)) {
@@ -96,6 +97,14 @@ public class AuthzProperties {
         this.policyEvents = policyEvents;
     }
 
+    public Redis getRedis() {
+        return redis;
+    }
+
+    public void setRedis(Redis redis) {
+        this.redis = redis;
+    }
+
     public static class PolicyEvents {
         private boolean enabled;
         private String channel = "auth:policy-changes";
@@ -114,6 +123,72 @@ public class AuthzProperties {
 
         public void setChannel(String channel) {
             this.channel = channel;
+        }
+    }
+
+    public static class Redis {
+        private String host = "localhost";
+        private int port = 6379;
+        private String username;
+        private String password;
+        private int database;
+        private boolean ssl;
+        private Duration timeout = Duration.ofSeconds(2);
+
+        public String getHost() {
+            return host;
+        }
+
+        public void setHost(String host) {
+            this.host = host;
+        }
+
+        public int getPort() {
+            return port;
+        }
+
+        public void setPort(int port) {
+            this.port = port;
+        }
+
+        public String getUsername() {
+            return username;
+        }
+
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        public int getDatabase() {
+            return database;
+        }
+
+        public void setDatabase(int database) {
+            this.database = database;
+        }
+
+        public boolean isSsl() {
+            return ssl;
+        }
+
+        public void setSsl(boolean ssl) {
+            this.ssl = ssl;
+        }
+
+        public Duration getTimeout() {
+            return timeout;
+        }
+
+        public void setTimeout(Duration timeout) {
+            this.timeout = timeout;
         }
     }
 

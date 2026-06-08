@@ -125,6 +125,25 @@ Microservices validate JWT signature and expiry using the auth service JWKS endp
 
 API identifier policies are cached locally by the starter. This means normal requests do not perform database lookups. The cache refreshes from the registry service periodically and can also refresh immediately from Redis policy-change events when `authz.policy-events.enabled=true`.
 
+Microservices can enable Redis policy-change refresh through the common starter configuration:
+
+```yaml
+authz:
+  policy-events:
+    enabled: true
+    channel: auth:policy-changes
+  redis:
+    host: localhost
+    port: 6379
+    database: 0
+    username: ${REDIS_USERNAME:}
+    password: ${REDIS_PASSWORD:}
+    ssl: false
+    timeout: 2s
+```
+
+The starter uses an existing `RedisConnectionFactory` if the service defines one. If not, it creates one from `authz.redis.*` when policy events are enabled.
+
 ## Key storage in Vault
 
 Production signing keys should be generated and stored in Vault, not in source control.
