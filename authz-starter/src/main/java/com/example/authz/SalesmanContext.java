@@ -5,7 +5,7 @@ import java.util.Map;
 public record SalesmanContext(
         String salesmanId,
         String displayName,
-        ActorType actorType,
+        String actorType,
         Map<String, Object> attributes
 ) {
 }

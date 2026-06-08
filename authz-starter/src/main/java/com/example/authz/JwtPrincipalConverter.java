@@ -15,7 +15,10 @@ final class JwtPrincipalConverter {
 
     static AuthenticatedPrincipal convert(JWTClaimsSet claims) {
         try {
-            ActorType actorType = ActorType.valueOf(claims.getStringClaim("actor_type"));
+            String actorType = claims.getStringClaim("actor_type");
+            if (actorType == null || actorType.isBlank()) {
+                throw new JwtAuthenticationException("JWT does not contain actor_type");
+            }
             Set<String> actorGroups = new LinkedHashSet<>(claims.getStringListClaim("actor_groups"));
             StoreContext store = toStoreContext(claims.getJSONObjectClaim("store"));
             SalesmanContext salesman = toSalesmanContext(claims.getJSONObjectClaim("salesman"), actorType);
@@ -32,7 +35,7 @@ final class JwtPrincipalConverter {
                     actorGroups,
                     expiresAt
             );
-        } catch (IllegalArgumentException | ParseException ex) {
+        } catch (ParseException ex) {
             throw new JwtAuthenticationException("JWT does not contain the required authentication claims", ex);
         }
     }
@@ -49,7 +52,7 @@ final class JwtPrincipalConverter {
         );
     }
 
-    private static SalesmanContext toSalesmanContext(Map<String, Object> value, ActorType actorType) {
+    private static SalesmanContext toSalesmanContext(Map<String, Object> value, String actorType) {
         Map<String, Object> attributes = mutableAttributes(value);
         return new SalesmanContext(
                 asString(attributes.remove("salesmanId")),

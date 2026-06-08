@@ -16,18 +16,15 @@ import org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMappi
 public class ApiDescriptorScanner implements ApplicationListener<ApplicationReadyEvent> {
     private final AuthzProperties properties;
     private final ApiIdentifierRegistryClient registryClient;
-    private final ApiIdentifierCache apiIdentifierCache;
     private final Collection<RequestMappingInfoHandlerMapping> handlerMappings;
 
     public ApiDescriptorScanner(
             AuthzProperties properties,
             ApiIdentifierRegistryClient registryClient,
-            ApiIdentifierCache apiIdentifierCache,
             Collection<RequestMappingInfoHandlerMapping> handlerMappings
     ) {
         this.properties = properties;
         this.registryClient = registryClient;
-        this.apiIdentifierCache = apiIdentifierCache;
         this.handlerMappings = handlerMappings;
     }
 
@@ -37,7 +34,6 @@ public class ApiDescriptorScanner implements ApplicationListener<ApplicationRead
             return;
         }
         Collection<ApiIdentifierRegistration> registrations = scan();
-        apiIdentifierCache.registerLocalPolicies(registrations);
         registryClient.register(registrations);
     }
 
@@ -64,14 +60,6 @@ public class ApiDescriptorScanner implements ApplicationListener<ApplicationRead
         ApiIdentifierRegistration registration = new ApiIdentifierRegistration();
         registration.setServiceName(properties.getServiceName());
         registration.setApiIdentifier(apiIdentifier);
-        ApiAccessPolicy annotationPolicy = ApiAccessPolicy.from(properties.getServiceName(), authenticate);
-        registration.setAllowedActorTypes(annotationPolicy.getAllowedActorTypes());
-        registration.setAllowedActorGroups(annotationPolicy.getAllowedActorGroups());
-        ApiAccessPolicy configuredPolicy = properties.getApiPolicies().get(apiIdentifier);
-        if (configuredPolicy != null) {
-            registration.setAllowedActorTypes(configuredPolicy.getAllowedActorTypes());
-            registration.setAllowedActorGroups(configuredPolicy.getAllowedActorGroups());
-        }
         return registration;
     }
 

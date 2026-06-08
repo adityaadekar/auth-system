@@ -4,9 +4,11 @@ Reference Spring Boot authentication and authorization system for store users.
 
 ## Modules
 
-- `auth-service`: owns OTP authentication, opaque session tokens, JWT exchange, key publication, API identifier registry, and revocation publication.
-- `authz-starter`: reusable Spring Boot starter/library for microservices. It provides `@Authenticate("API_IDENTIFIER")`, validates JWTs offline using JWKS, checks local API identifier policy cache, and exposes the authenticated principal.
+- `auth-service`: owns OTP authentication, opaque session tokens, JWT issuance, key publication, API identifier registry, actor values, API-to-actor mappings, and revocation publication.
+- `authz-starter`: reusable Spring Boot starter/library for microservices. It provides `@Authenticate("API_IDENTIFIER")`, validates JWTs offline using JWKS, checks local API identifier policy cache, and exposes the authenticated principal without defining actor types.
 - `example-service`: minimal protected service showing how another microservice integrates the starter.
+
+See [Auth and Authorization Design](docs/auth-authorization-design.md) for the full ownership model, portal-backed policy flow, refresh scenarios, and operational guidance.
 
 ## Authentication flow
 
@@ -24,12 +26,12 @@ Reference Spring Boot authentication and authorization system for store users.
 2. `auth-service` validates `salesmanId + otp`, resolves the user's assigned store and salesman profile, creates a session, and returns:
    - store details
    - salesman details
-   - flat actor type: `STORE_ADMIN`, `SALESMAN`, `OPTOMETRIST`, `USHER`, `REMOTE_OPTOM`, `DISPENSING_OPTOM`, `KIDS_OPTOM`, `REPAIR_SPECIALIST`
+   - actor type from the auth-service actor catalog
    - opaque session token
    - signed JWT
    - expiry
 
-   Remote, dispensing, and kids optoms are still returned in this flat form, but JWTs also carry `actor_groups: ["OPTOMETRIST"]` so APIs can authorize all optometrists without listing every optom subtype.
+   Actor groups are calculated by auth-service and included in JWTs as `actor_groups` so APIs can authorize a group without the shared starter knowing the actor catalog.
 
 3. Frontend sends this JWT to microservices using `Authorization: Bearer <jwt>`.
 
@@ -51,11 +53,7 @@ Annotate only APIs that need authentication:
 
 ```java
 @GetMapping("/orders")
-@Authenticate(
-    value = "STORE_ORDERS_READ",
-    allowedActorTypes = {ActorType.STORE_ADMIN, ActorType.SALESMAN},
-    allowedActorGroups = {"OPTOMETRIST"}
-)
+@Authenticate("STORE_ORDERS_READ")
 public List<Order> orders() {
     AuthenticatedPrincipal principal = RequestAuthContextHolder.requireCurrent();
     return orderService.findForStore(principal.store().storeId());
@@ -64,16 +62,17 @@ public List<Order> orders() {
 
 If `@Authenticate` is absent, the starter does not authenticate or authorize that endpoint.
 
-Consuming microservices should not define `authz` configuration. The starter supplies auth-service, JWKS, registry, auto-registration, revocation cache, and service-name defaults; the API identifier and optional default access policy live on the annotation.
+Consuming microservices should not define actor mappings in code or `authz` configuration. The starter supplies auth-service, JWKS, registry, auto-registration, revocation cache, and service-name defaults; the annotation only carries the API identifier. Actor mappings live in auth-service persistent storage and are managed through the portal.
 
 If `@Authenticate` is present:
 
 1. Missing/invalid/revoked JWT returns `401`.
 2. Unknown `API_IDENTIFIER` returns `401`.
-3. Known identifier but disallowed actor type/group returns `403`.
-4. Store and salesman details come only from JWT claims produced by the auth response; the microservice does not look them up in its database.
+3. Known identifier without a configured actor mapping returns `403`.
+4. Known identifier but disallowed actor type/group returns `403`.
+5. Store and salesman details come only from JWT claims produced by the auth response; the microservice does not look them up in its database.
 
-The starter auto-registers annotated API identifiers on application startup at `POST /internal/api-identifiers`. Empty allowed actor lists on `@Authenticate` mean "any authenticated actor".
+The starter auto-registers annotated API identifiers on application startup at `POST /internal/api-identifiers`. Auto-registration discovers service/path/method metadata; it does not grant access until auth-service has a policy mapping for the identifier.
 
 ## API identifier registry
 
@@ -83,7 +82,7 @@ The starter auto-registers annotated API identifiers on application startup at `
 - `GET /internal/api-identifiers?serviceName=order-service`: policy view consumed by microservices.
 - `GET /internal/api-identifiers/records`: operational view including paths and methods.
 
-This registry should be backed by persistent storage in production. This repository uses an in-memory implementation to keep the example self-contained.
+This registry should be backed by persistent storage in production and managed through the auth portal. This repository uses an in-memory implementation to keep the example self-contained.
 
 ## JWT authorization without DB lookup
 
@@ -91,12 +90,12 @@ Microservices validate JWT signature and expiry using the auth service JWKS endp
 
 - `sid`: session id
 - `app_id`: frontend application id
-- `actor_type`: flat role/type
-- `actor_groups`: includes `OPTOMETRIST` for optometrist subtypes
+- `actor_type`: actor value issued by auth-service
+- `actor_groups`: groups issued by auth-service
 - `store`: store details
 - `salesman`: salesman details
 
-API identifier policies are cached locally by the starter. This means normal requests do not perform database lookups. The cache can be refreshed from the registry service periodically.
+API identifier policies are cached locally by the starter. This means normal requests do not perform database lookups. The cache can be refreshed from the registry service periodically and, in production, should also react to policy-change events.
 
 ## Key storage in Vault
 

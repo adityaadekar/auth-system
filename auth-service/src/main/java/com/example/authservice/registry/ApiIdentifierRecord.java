@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-import com.example.authz.ActorType;
 import com.example.authz.ApiAccessPolicy;
 import com.example.authz.ApiIdentifierRegistration;
 
@@ -13,7 +12,7 @@ public class ApiIdentifierRecord {
     private String apiIdentifier;
     private Set<String> pathPatterns = new LinkedHashSet<>();
     private Set<String> httpMethods = new LinkedHashSet<>();
-    private Set<ActorType> allowedActorTypes = new LinkedHashSet<>();
+    private Set<String> allowedActorTypes = new LinkedHashSet<>();
     private Set<String> allowedActorGroups = new LinkedHashSet<>();
     private boolean active = true;
     private Instant updatedAt = Instant.now();
@@ -67,7 +66,7 @@ public class ApiIdentifierRecord {
         return httpMethods;
     }
 
-    public Set<ActorType> getAllowedActorTypes() {
+    public Set<String> getAllowedActorTypes() {
         return allowedActorTypes;
     }
 

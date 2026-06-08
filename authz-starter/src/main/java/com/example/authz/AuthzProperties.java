@@ -2,8 +2,6 @@ package com.example.authz;
 
 import java.net.URI;
 import java.time.Duration;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.core.env.Environment;
@@ -20,7 +18,6 @@ public class AuthzProperties {
     private URI registryUri = DEFAULT_AUTH_SERVICE_URI;
     private boolean autoRegisterApis = true;
     private Duration registryRefreshInterval = Duration.ofMinutes(1);
-    private Map<String, ApiAccessPolicy> apiPolicies = new LinkedHashMap<>();
 
     public void applyEnvironmentDefaults(Environment environment) {
         if (!StringUtils.hasText(serviceName)) {
@@ -90,11 +87,4 @@ public class AuthzProperties {
         this.registryRefreshInterval = registryRefreshInterval;
     }
 
-    public Map<String, ApiAccessPolicy> getApiPolicies() {
-        return apiPolicies;
-    }
-
-    public void setApiPolicies(Map<String, ApiAccessPolicy> apiPolicies) {
-        this.apiPolicies = apiPolicies == null ? new LinkedHashMap<>() : apiPolicies;
-    }
 }

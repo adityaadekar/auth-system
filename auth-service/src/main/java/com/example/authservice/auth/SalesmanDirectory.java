@@ -6,7 +6,6 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Repository;
 
-import com.example.authz.ActorType;
 import com.example.authz.SalesmanContext;
 import com.example.authz.StoreContext;
 
@@ -56,7 +55,7 @@ public class SalesmanDirectory {
     ) {
         assignments.put(salesmanId, new SalesmanAssignment(
                 store,
-                new SalesmanContext(salesmanId, displayName, actorType, attributes),
+                new SalesmanContext(salesmanId, displayName, actorType.name(), attributes),
                 otp
         ));
     }

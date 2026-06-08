@@ -107,10 +107,9 @@ public class AuthzAutoConfiguration {
             AuthzProperties properties,
             Environment environment,
             ApiIdentifierRegistryClient registryClient,
-            ApiIdentifierCache apiIdentifierCache,
             Collection<RequestMappingInfoHandlerMapping> handlerMappings
     ) {
         properties.applyEnvironmentDefaults(environment);
-        return new ApiDescriptorScanner(properties, registryClient, apiIdentifierCache, handlerMappings);
+        return new ApiDescriptorScanner(properties, registryClient, handlerMappings);
     }
 }
