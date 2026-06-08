@@ -1,5 +1,6 @@
 package com.example.authz;
 
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -9,6 +10,15 @@ public class ApiAccessPolicy {
     private Set<ActorType> allowedActorTypes = new LinkedHashSet<>();
     private Set<String> allowedActorGroups = new LinkedHashSet<>();
     private boolean active = true;
+
+    public static ApiAccessPolicy from(String serviceName, Authenticate authenticate) {
+        ApiAccessPolicy policy = new ApiAccessPolicy();
+        policy.setServiceName(serviceName);
+        policy.setApiIdentifier(authenticate.value());
+        policy.setAllowedActorTypes(new LinkedHashSet<>(Arrays.asList(authenticate.allowedActorTypes())));
+        policy.setAllowedActorGroups(new LinkedHashSet<>(Arrays.asList(authenticate.allowedActorGroups())));
+        return policy;
+    }
 
     public String getServiceName() {
         return serviceName;

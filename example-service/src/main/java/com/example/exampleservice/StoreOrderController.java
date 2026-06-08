@@ -5,13 +5,18 @@ import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.authz.ActorType;
 import com.example.authz.Authenticate;
 import com.example.authz.RequestAuthContextHolder;
 
 @RestController
 public class StoreOrderController {
     @GetMapping("/orders")
-    @Authenticate("STORE_ORDERS_READ")
+    @Authenticate(
+            value = "STORE_ORDERS_READ",
+            allowedActorTypes = {ActorType.STORE_ADMIN, ActorType.SALESMAN},
+            allowedActorGroups = {"OPTOMETRIST"}
+    )
     public Map<String, Object> orders() {
         var principal = RequestAuthContextHolder.requireCurrent();
         return Map.of(

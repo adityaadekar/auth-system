@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.http.MediaType;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -28,11 +29,15 @@ public class ApiIdentifierRegistryClient {
                 .queryParam("serviceName", properties.getServiceName())
                 .build()
                 .toUri();
-        ApiAccessPolicy[] policies = restClient.get()
-                .uri(uri)
-                .retrieve()
-                .body(ApiAccessPolicy[].class);
-        return Optional.of(policies == null ? List.of() : Arrays.asList(policies));
+        try {
+            ApiAccessPolicy[] policies = restClient.get()
+                    .uri(uri)
+                    .retrieve()
+                    .body(ApiAccessPolicy[].class);
+            return Optional.of(policies == null ? List.of() : Arrays.asList(policies));
+        } catch (RestClientException ex) {
+            return Optional.empty();
+        }
     }
 
     public Optional<List<RevokedToken>> fetchRevocations() {
@@ -44,11 +49,15 @@ public class ApiIdentifierRegistryClient {
                 .queryParam("serviceName", properties.getServiceName())
                 .build()
                 .toUri();
-        RevokedToken[] revokedTokens = restClient.get()
-                .uri(uri)
-                .retrieve()
-                .body(RevokedToken[].class);
-        return Optional.of(revokedTokens == null ? List.of() : Arrays.asList(revokedTokens));
+        try {
+            RevokedToken[] revokedTokens = restClient.get()
+                    .uri(uri)
+                    .retrieve()
+                    .body(RevokedToken[].class);
+            return Optional.of(revokedTokens == null ? List.of() : Arrays.asList(revokedTokens));
+        } catch (RestClientException ex) {
+            return Optional.empty();
+        }
     }
 
     public void register(Collection<ApiIdentifierRegistration> registrations) {
@@ -59,11 +68,15 @@ public class ApiIdentifierRegistryClient {
                 .path("/internal/api-identifiers")
                 .build()
                 .toUri();
-        restClient.post()
-                .uri(uri)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(registrations)
-                .retrieve()
-                .toBodilessEntity();
+        try {
+            restClient.post()
+                    .uri(uri)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(registrations)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException ex) {
+            // Keep application startup independent from registry availability.
+        }
     }
 }
