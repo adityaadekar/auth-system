@@ -1,0 +1,15 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: auth-service
+
+authz:
+  enabled: false
+
+auth:
+  issuer: http://localhost:8080
+  session-ttl: 30m
+  jwt:
+    key-id: local-dev-key
