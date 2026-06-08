@@ -10,6 +10,6 @@ authz:
 
 auth:
   issuer: http://localhost:8080
-  session-ttl: 30m
   jwt:
+    ttl: 30m
     key-id: local-dev-key

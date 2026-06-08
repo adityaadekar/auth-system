@@ -8,7 +8,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "auth")
 public class AuthProperties {
     private URI issuer = URI.create("http://localhost:8080");
-    private Duration sessionTtl = Duration.ofMinutes(30);
     private Jwt jwt = new Jwt();
 
     public URI getIssuer() {
@@ -17,14 +16,6 @@ public class AuthProperties {
 
     public void setIssuer(URI issuer) {
         this.issuer = issuer;
-    }
-
-    public Duration getSessionTtl() {
-        return sessionTtl;
-    }
-
-    public void setSessionTtl(Duration sessionTtl) {
-        this.sessionTtl = sessionTtl;
     }
 
     public Jwt getJwt() {
@@ -36,9 +27,18 @@ public class AuthProperties {
     }
 
     public static class Jwt {
+        private Duration ttl = Duration.ofMinutes(30);
         private String keyId = "local-dev-key";
         private String privateKeyPem;
         private String publicKeyPem;
+
+        public Duration getTtl() {
+            return ttl;
+        }
+
+        public void setTtl(Duration ttl) {
+            this.ttl = ttl;
+        }
 
         public String getKeyId() {
             return keyId;
